@@ -74,6 +74,46 @@ contract WebAuthn7702 {
 		if (deadline != 0 && block.timestamp > deadline) revert DeadlineExpired();
 	}
 
+	/**
+	 * @dev Internal function to handle the heavy lifting of WebAuthn verification.
+	 * This is separated from 'execute' to avoid the "Stack too deep" error.
+	 * Variables declared here are popped from the stack once this function returns.
+	 */
+	function _verifyExecute(
+		bytes32 credentialIdHash,
+		address to,
+		uint256 value,
+		bytes calldata data,
+		uint256 deadline,
+		WebAuthnP256.Metadata calldata metadata,
+		ECDSA.Signature calldata signature
+	) internal view {
+		WebAuthnKey memory key = keys[credentialIdHash];
+
+		// Check if key exists and is enabled
+		if (!key.enabled || key.x == 0) revert InvalidKey();
+
+		_checkDeadline(deadline);
+
+		ECDSA.PublicKey memory publicKey = ECDSA.PublicKey({x: key.x, y: key.y});
+
+		// Read nonce to reconstruct the signed message (challenge)
+		uint256 nonce = nonces[credentialIdHash];
+
+		bytes32 challenge = challengeExecute(credentialIdHash, to, value, nonce, data, deadline);
+
+		// Perform the actual P256 verification
+		bool ok = WebAuthnP256.verify(challenge, metadata, signature, publicKey);
+		if (!ok) revert WebAuthnVerifyFailed();
+	}
+
+	/**
+	 * @dev Main execution function.
+	 * 1. Verifies the WebAuthn signature (via internal call to clear stack).
+	 * 2. Increments nonce.
+	 * 3. Executes the target call.
+	 * 4. Emits event.
+	 */
 	function execute(
 		bytes32 credentialIdHash,
 		address to,
@@ -83,23 +123,19 @@ contract WebAuthn7702 {
 		WebAuthnP256.Metadata calldata metadata,
 		ECDSA.Signature calldata signature
 	) external payable returns (bytes memory) {
-		WebAuthnKey memory key = keys[credentialIdHash];
-		if (!key.enabled || key.x == 0) revert InvalidKey();
+		// 1. Verification Logic (Refactored into internal function)
+		//    This clears the stack of heavy variables (publicKey, key struct, etc.) after return.
+		_verifyExecute(credentialIdHash, to, value, data, deadline, metadata, signature);
 
-		_checkDeadline(deadline);
-
-		ECDSA.PublicKey memory publicKey = ECDSA.PublicKey({x: key.x, y: key.y});
-		uint256 nonce = nonces[credentialIdHash];
-
-		bytes32 challenge = challengeExecute(credentialIdHash, to, value, nonce, data, deadline);
-		bool ok = WebAuthnP256.verify(challenge, metadata, signature, publicKey);
-		if (!ok) revert WebAuthnVerifyFailed();
-
+		// 2. State Update
 		nonces[credentialIdHash]++;
 
+		// 3. Execution
 		(bool success, bytes memory result) = to.call{value: value}(data);
 		if (!success) revert CallFailed();
 
+		// 4. Event Emission
+		//    Now there is enough stack space to emit this event with all parameters.
 		emit Executed(credentialIdHash, to, value, data, result);
 
 		return result;

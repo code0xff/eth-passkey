@@ -20,7 +20,7 @@ library P256 {
 		ECDSA.Signature memory signature,
 		ECDSA.PublicKey memory publicKey
 	) internal view returns (bool) {
-		(bool success, bytes memory output) = address(0x0b).staticcall(
+		(bool success, bytes memory output) = address(0x100).staticcall(
 			abi.encode(digest, signature.r, signature.s, publicKey.x, publicKey.y)
 		);
 		success = success && output.length == 32 && output[31] == 0x01;

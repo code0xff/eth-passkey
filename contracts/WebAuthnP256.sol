@@ -5,6 +5,8 @@ import '@openzeppelin/contracts/utils/Base64.sol';
 import './ECDSA.sol';
 import './P256.sol';
 
+import 'forge-std/console.sol';
+
 /// @title WebAuthnP256
 /// @author jxom <https://github.com/jxom>
 /// @notice Helper library for external contracts to verify WebAuthn signatures.
@@ -161,6 +163,9 @@ library WebAuthnP256 {
 		bytes32 messageHash = sha256(
 			abi.encodePacked(metadata.authenticatorData, clientDataJSONHash)
 		);
+
+		console.log("messageHash");
+		console.logBytes32(messageHash);
 
 		return P256.verify(messageHash, signature, publicKey);
 	}

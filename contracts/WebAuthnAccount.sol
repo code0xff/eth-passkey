@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import './ECDSA.sol';
 import './WebAuthnP256.sol';
 
-contract WebAuthn7702 {
+contract WebAuthnAccount {
 	struct WebAuthnKey {
 		uint256 x;
 		uint256 y;
@@ -34,7 +34,7 @@ contract WebAuthn7702 {
 		_;
 	}
 
-	bytes32 constant EXECUTE_DOMAIN = keccak256('WEBAUTHN_7702_EXECUTE');
+	bytes32 constant EXECUTE_DOMAIN = keccak256('WEBAUTHN_ACCOUNT_EXECUTE');
 
 	function setKey(
 		bytes32 credentialIdHash,
@@ -47,6 +47,7 @@ contract WebAuthn7702 {
 	}
 
 	function challengeExecute(
+		address targetContract,
 		bytes32 credentialIdHash,
 		address to,
 		uint256 value,
@@ -59,7 +60,7 @@ contract WebAuthn7702 {
 				abi.encode(
 					EXECUTE_DOMAIN,
 					block.chainid,
-					address(this),
+					targetContract,
 					credentialIdHash,
 					to,
 					value,
@@ -100,7 +101,7 @@ contract WebAuthn7702 {
 		// Read nonce to reconstruct the signed message (challenge)
 		uint256 nonce = nonces[credentialIdHash];
 
-		bytes32 challenge = challengeExecute(credentialIdHash, to, value, nonce, data, deadline);
+		bytes32 challenge = challengeExecute(address(this), credentialIdHash, to, value, nonce, data, deadline);
 
 		// Perform the actual P256 verification
 		bool ok = WebAuthnP256.verify(challenge, metadata, signature, publicKey);

@@ -11,7 +11,9 @@
 		toBytes,
 		type Hex,
 		type Address,
-		sha256
+		sha256,
+		encodeAbiParameters,
+		parseAbiParameters
 	} from 'viem';
 	import { privateKeyToAccount } from 'viem/accounts';
 	import { sepolia } from 'viem/chains';
@@ -249,6 +251,34 @@
 		addLog(`Identity Loaded: ${cred.username}`, 'success');
 	}
 
+	function challenge(
+		chainId: bigint,
+		targetContract: Hex,
+		credentialIdHash: Hex,
+		to: Hex,
+		value: bigint,
+		data: Hex,
+		nonce: bigint,
+		deadline: bigint
+	) {
+		const encoded = encodeAbiParameters(
+			parseAbiParameters('bytes32,uint256,address,bytes32,address,uint256,bytes32,uint256,uint256'),
+			[
+				keccak256(new TextEncoder().encode('WEBAUTHN_ACCOUNT_EXECUTE')),
+				chainId,
+				targetContract,
+				credentialIdHash,
+				to,
+				value,
+				keccak256(data),
+				nonce,
+				deadline
+			]
+		);
+
+		return keccak256(encoded);
+	}
+
 	// --- Step 4: Execute (UserOp) ---
 	async function sendUserOperation() {
 		if (!currentCredentialId) return alert('Select a Passkey');
@@ -284,6 +314,17 @@
 				args: [credentialIdHash]
 			});
 			const deadline = BigInt(9999999999);
+			const derivedChallenge = challenge(
+				11155111n,
+				targetEOA,
+				credentialIdHash,
+				internalTo,
+				internalValue,
+				internalData,
+				nonce,
+				deadline
+			);
+
 			const challengeHash = await publicClient.readContract({
 				address: targetEOA,
 				abi: CONTRACT_ABI,
@@ -298,12 +339,17 @@
 					deadline
 				]
 			});
-			addLog(`challenge: ${challengeHash}`);
+			if (derivedChallenge !== challengeHash) {
+				addLog(`Invalid Challenge. local: ${derivedChallenge}, remote: ${challengeHash}`);
+				return;
+			}
+			addLog(`challenge: ${derivedChallenge}`);
+
 			addLog(`Requesting Biometric Auth...`);
 
 			const assertion = (await navigator.credentials.get({
 				publicKey: {
-					challenge: toBytes(challengeHash).buffer as ArrayBuffer,
+					challenge: toBytes(derivedChallenge).buffer as ArrayBuffer,
 					allowCredentials: [{ id: currentCredIdBytes.buffer as ArrayBuffer, type: 'public-key' }],
 					userVerification: 'required'
 				}
@@ -656,8 +702,8 @@
 
 	<div class="hidden w-[400px] flex-col border-l border-gray-800 bg-black text-white lg:flex">
 		<div class="flex h-16 items-center justify-between border-b border-gray-800 px-4">
-			<span class="flex items-center gap-2 text-xs font-bold tracking-widest uppercase"
-				><span class="h-2 w-2 animate-pulse rounded-full bg-green-500"></span>Terminal</span
+			<span class="flex items-center gap-2 text-xs font-bold tracking-widest uppercase">
+				<span class="h-2 w-2 animate-pulse rounded-full bg-green-500"></span>Terminal</span
 			>
 			<button
 				onclick={() => (logs = [])}

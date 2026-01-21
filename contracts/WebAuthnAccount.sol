@@ -101,7 +101,15 @@ contract WebAuthnAccount {
 		// Read nonce to reconstruct the signed message (challenge)
 		uint256 nonce = nonces[credentialIdHash];
 
-		bytes32 challenge = challengeExecute(address(this), credentialIdHash, to, value, nonce, data, deadline);
+		bytes32 challenge = challengeExecute(
+			address(this),
+			credentialIdHash,
+			to,
+			value,
+			nonce,
+			data,
+			deadline
+		);
 
 		// Perform the actual P256 verification
 		bool ok = WebAuthnP256.verify(challenge, metadata, signature, publicKey);

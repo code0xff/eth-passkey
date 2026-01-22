@@ -78,7 +78,7 @@
 	// --- State Variables ---
 	// [Setup Mode]
 	let manualPrivateKey: string = '';
-	let implementationAddress: string = '';
+	let implementationAddress: string = '0x3568928CE36415E7dCfE917B90f43D296FC433a6';
 
 	// [User Mode]
 	let userWalletAddress: string = '';
@@ -242,6 +242,16 @@
 	}
 
 	function selectCredential(cred: StoredCredential) {
+		if (currentCredentialId === cred.id) {
+			currentCredentialId = '';
+			username = '';
+			currentCredentialId = '';
+			currentCredentialIdHash = '';
+			currentX = 0n;
+			currentY = 0n;
+			return;
+		}
+		
 		currentCredentialId = cred.id;
 		username = cred.username;
 		currentX = BigInt('0x' + cred.x);

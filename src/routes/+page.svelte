@@ -261,7 +261,7 @@
 		addLog(`Identity Loaded: ${cred.username}`, 'success');
 	}
 
-	function challenge(
+	function deriveChallenge(
 		chainId: bigint,
 		targetContract: Hex,
 		credentialIdHash: Hex,
@@ -290,7 +290,7 @@
 	}
 
 	// --- Step 4: Execute (UserOp) ---
-	async function sendUserOperation() {
+	async function sendOperation() {
 		if (!currentCredentialId) return alert('Select a Passkey');
 		if (!userWalletAddress || !userWalletAddress.startsWith('0x'))
 			return alert('Target Wallet Address required');
@@ -303,12 +303,12 @@
 			isLoading = true;
 
 			const account = privateKeyToAccount(relayerPrivateKey as Hex);
-			const senderAddress = account.address;
-			const senderClient = createWalletClient({ account, chain: sepolia, transport: http() });
+			const relayerAddress = account.address;
+			const relayerClient = createWalletClient({ account, chain: sepolia, transport: http() });
 			const publicClient = createPublicClient({ chain, transport: http() });
 			const targetEOA = userWalletAddress as Address;
 
-			addLog(`Using Local Relayer: ${senderAddress}...`);
+			addLog(`Using Local Relayer: ${relayerAddress}...`);
 			addLog('Preparing Transaction...');
 
 			const internalTo = toAddress as Address;
@@ -323,8 +323,8 @@
 				functionName: 'nonces',
 				args: [credentialIdHash]
 			});
-			const deadline = BigInt(9999999999);
-			const derivedChallenge = challenge(
+			const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 60);
+			const derivedChallenge = deriveChallenge(
 				11155111n,
 				targetEOA,
 				credentialIdHash,
@@ -438,11 +438,10 @@
 				}
 			}
 
-			const hash = await senderClient.sendTransaction({
+			const hash = await relayerClient.sendTransaction({
 				to: targetEOA,
 				data: txData,
-				value: 0n,
-				chain: sepolia
+				value: 0n
 			});
 
 			addLog(`Transaction Executed! Hash: ${hash}`, 'success');
@@ -695,7 +694,7 @@
 							<Input bind:value={callData} placeholder="0x" class="rounded-none border-black" />
 						</div>
 						<Button
-							onclick={sendUserOperation}
+							onclick={sendOperation}
 							disabled={isLoading ||
 								!relayerPrivateKey ||
 								!userWalletAddress ||

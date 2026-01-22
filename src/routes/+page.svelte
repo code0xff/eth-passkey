@@ -78,7 +78,7 @@
 	// --- State Variables ---
 	// [Setup Mode]
 	let manualPrivateKey: string = '';
-	let implementationAddress: string = '0x3568928CE36415E7dCfE917B90f43D296FC433a6';
+	let webAuthnContract: string = '0x3568928CE36415E7dCfE917B90f43D296FC433a6';
 
 	// [User Mode]
 	let userWalletAddress: string = '';
@@ -177,7 +177,7 @@
 	}
 
 	async function upgradeEOA() {
-		if (!implementationAddress.startsWith('0x')) return alert('Contract Address required');
+		if (!webAuthnContract.startsWith('0x')) return alert('Contract Address required');
 		if (!manualPrivateKey) return alert('Private Key required');
 		try {
 			isLoading = true;
@@ -190,7 +190,7 @@
 
 			addLog(`Signing EIP-7702 Authorization...`);
 			const authorization = await signerClient.signAuthorization({
-				contractAddress: implementationAddress as Address,
+				contractAddress: webAuthnContract as Address,
 				executor: 'self'
 			});
 
@@ -251,7 +251,7 @@
 			currentY = 0n;
 			return;
 		}
-		
+
 		currentCredentialId = cred.id;
 		username = cred.username;
 		currentX = BigInt('0x' + cred.x);
@@ -487,16 +487,16 @@
 						/>
 					</div>
 					<div class="space-y-2">
-						<Label>Smart Account</Label>
+						<Label>WebAuthn Account Contract</Label>
 						<Input
-							bind:value={implementationAddress}
+							bind:value={webAuthnContract}
 							placeholder="Contract Address (0x...)"
 							class="rounded-none border-black"
 						/>
 					</div>
 					<Button
 						onclick={upgradeEOA}
-						disabled={isLoading || !manualPrivateKey || !implementationAddress}
+						disabled={isLoading || !manualPrivateKey || !webAuthnContract}
 						class="w-full rounded-none border-2 border-black bg-black font-bold text-white hover:bg-gray-800"
 					>
 						Upgrade EOA
